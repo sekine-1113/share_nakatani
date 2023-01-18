@@ -2,19 +2,10 @@ import datetime
 import os
 import time
 from random import choice, randint
-from urllib.parse import quote
 
 import requests
-from apscheduler.schedulers.blocking import BlockingScheduler
 from requests_oauthlib import OAuth1Session
 from dotenv import load_dotenv
-
-load_dotenv()
-
-API_KEY = os.environ["API_KEY"]
-API_SEC_KEY = os.environ["API_SEC"]
-ACC_TOKEN = os.environ["TOKEN"]
-ACC_SEC_TOKEN = os.environ["TOKEN_SEC"]
 
 
 def get_bearer(API_key, API_secret_key):
@@ -31,18 +22,19 @@ def get_bearer(API_key, API_secret_key):
         return request
     return request.json()["access_token"]
 
-
-schedule = BlockingScheduler()
-
 def retweet(oauth, tweet_id):
     url = f"https://api.twitter.com/1.1/statuses/retweet/{tweet_id}.json"
     oauth.post(url)
 
-BEARER = get_bearer(API_KEY, API_SEC_KEY)
-OAUTH = OAuth1Session(API_KEY, API_SEC_KEY, ACC_TOKEN, ACC_SEC_TOKEN)
 
-@schedule.scheduled_job("interval", hours=1)
-def execute():
+load_dotenv()
+API_KEY = os.environ["API_KEY"]
+API_SEC_KEY = os.environ["API_SEC"]
+ACC_TOKEN = os.environ["TOKEN"]
+ACC_SEC_TOKEN = os.environ["TOKEN_SEC"]
+
+
+def main():
     url = "https://api.twitter.com/2/tweets/search/recent"
     today = datetime.date.today()
     now_year = today.year
@@ -57,17 +49,21 @@ def execute():
 
     params = {
         "query" : query,
-        "max_results" : 100,
+        "max_results" : 10,
         "tweet.fields" : "id,referenced_tweets"
     }
+    BEARER = get_bearer(API_KEY, API_SEC_KEY)
     req = requests.get(url, params=params, headers={"Authorization":f"Bearer {BEARER}"})
-
     if req.status_code != 200:
         exit(req.status_code)
 
+    OAUTH = OAuth1Session(API_KEY, API_SEC_KEY, ACC_TOKEN, ACC_SEC_TOKEN)
     for res in reversed(req.json()["data"]):
         print(res)
         retweet(OAUTH, res["id"])
-        time.sleep(randint(1,5)*60)
+        time.sleep(randint(15,45))
 
-schedule.start()
+
+if __name__ == "__main__":
+    main()
+

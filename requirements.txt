@@ -1,3 +1,5 @@
 requests
 requests_oauthlib
 apscheduler
+python-dotenv
+flask
