@@ -1,13 +1,22 @@
 import os
 import sys
+import time
+import random
 from pathlib import Path
 from threading import Thread
 
 from flask import Flask
 from requests_oauthlib import OAuth1Session
+from urllib3.exceptions import ProtocolError
 
-from share_nktn.twitterapi import FilteredStream
-from share_nktn.notify import ErrorPublisher, LINESubscriber
+from notify import ErrorPublisher, LINESubscriber, ConsoleSubscriber
+from twitterapi import (
+    FilteredStream,
+    _bearer_oauth,
+    exclude_retweeted,
+    retweet,
+    search_tweets
+)
 
 
 app = Flask("")
@@ -44,21 +53,39 @@ line_bearer_token = os.environ.get("LINE_BEARER")
 oauth = OAuth1Session(api_key, api_secret_key, access_token, access_token_secret)
 
 
+def back_tracking():
+    keywords = ["#毎日育ちゃん可愛い大会", "#無言で中谷育をあげる見た人もやる", "#中谷育"]
+    tweet_pool = search_tweets(
+        bearer_oauth=lambda r: _bearer_oauth(r, bearer_token),
+        keywords=keywords
+    )
+    untreated = exclude_retweeted(oauth, tweet_pool)
+    for untreated_tweet in untreated:
+        retweet(oauth, untreated_tweet["id"])
+        print("EXEC(RT):", untreated_tweet["id"])
+        time.sleep(random.randint(1, 3))
+
+
 def main():
     error = ErrorPublisher()
     error.subscribe(LINESubscriber(line_bearer_token))
+    error.subscribe(ConsoleSubscriber())
 
-    running = True
+
     print("ストリーミングを開始します。")
     stream = FilteredStream(bearer_token, oauth)
-
+    running = True
     while running:
         try:
             stream.stream_with_retweet()
-        except Exception as e:
-            print(e)
+        except ProtocolError as e:
             error.notify(str(e))
-            running = False
+            time.sleep(300)
+            back_tracking()
+        except Exception as e:
+            error.notify(str(e))
+            time.sleep(300)
+            back_tracking()
 
 
 if __name__ == "__main__":

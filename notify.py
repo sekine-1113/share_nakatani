@@ -43,20 +43,8 @@ class LINESubscriber(ISubscriber):
         headers = {"Authorization": "Bearer "+ self._token}
         requests.post(endpoint, data=payload, headers=headers)
 
-    def check_remaining(self) -> int:
-        endpoint = "https://notify-api.line.me/api/status"
-        headers = {"Authorization": "Bearer "+ self._token}
-        req = requests.get(endpoint, headers=headers)
-        img_remaining = int(req.headers["X-RateLimit-ImageRemaining"])
-        return img_remaining
 
-    def sleep(self):
-        endpoint = "https://notify-api.line.me/api/status"
-        headers = {"Authorization": "Bearer "+ self._token}
-        req = requests.get(endpoint, headers=headers)
-        reset_time = int(req.headers["X-RateLimit-Reset"])
-        sleep_time = reset_time - int(time.time())
-        print(f"{sleep_time}秒sleepします...")
-        for i in range(sleep_time):
-            print("\r{:5d} / {:5d}".format(i, sleep_time), end="")
-            time.sleep(1)
+class ConsoleSubscriber(ISubscriber):
+
+    def update(self, message):
+        print(message)

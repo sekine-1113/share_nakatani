@@ -8,7 +8,7 @@ from flask import Flask
 from requests_oauthlib import OAuth1Session
 from apscheduler.schedulers.blocking import BlockingScheduler
 
-from .twitterapi import retweet, search_tweets, exclude_retweeted
+from twitterapi import retweet, search_tweets, exclude_retweeted
 
 scheduler = BlockingScheduler()
 

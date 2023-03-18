@@ -9,21 +9,22 @@ def retweet(oauth: OAuth1Session, tweet_id):
     oauth.post(url)
 
 
+def _bearer_oauth(req, bearer_token):
+    req.headers["Authorization"] = f"Bearer {bearer_token}"
+    req.headers["User-Agent"] = "share_nakatani project"
+    return req
+
 class FilteredStream:
+
     def __init__(self, bearer_token, oauth) -> None:
         self._bearer_token = bearer_token
         self._oauth = oauth
-
-    def _bearer_oauth(self, req):
-        req.headers["Authorization"] = f"Bearer {self._bearer_token}"
-        req.headers["User-Agent"] = "share_nakatani project (test)"
-        return req
 
 
     def get_rules(self):
         response = requests.get(
             "https://api.twitter.com/2/tweets/search/stream/rules",
-            auth=self._bearer_oauth)
+            auth=lambda r: _bearer_oauth(r, self._bearer_token))
         if response.status_code != 200:
             raise Exception("Cannot get rules (HTTP {}): {}".format(
                 response.status_code, response.text))
@@ -39,7 +40,7 @@ class FilteredStream:
         payload = {"delete": {"ids": ids}}
         response = requests.post(
             "https://api.twitter.com/2/tweets/search/stream/rules",
-            auth=self._bearer_oauth,
+            auth=lambda r: _bearer_oauth(r, self._bearer_token),
             json=payload)
         if response.status_code != 200:
             raise Exception("Cannot delete rules (HTTP {}): {}".format(
@@ -65,7 +66,7 @@ class FilteredStream:
         payload = {"add": rules}
         response = requests.post(
             "https://api.twitter.com/2/tweets/search/stream/rules",
-            auth=self._bearer_oauth,
+            auth=lambda r: _bearer_oauth(r, self._bearer_token),
             json=payload,
         )
         if response.status_code != 201:
@@ -77,7 +78,7 @@ class FilteredStream:
     def stream_with_retweet(self):
         response = requests.get(
             "https://api.twitter.com/2/tweets/search/stream",
-            auth=self._bearer_oauth,
+            auth=lambda r: _bearer_oauth(r, self._bearer_token),
             stream=True,
         )
         if response.status_code != 200:
