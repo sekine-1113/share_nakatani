@@ -9,28 +9,26 @@ def retweet(oauth: OAuth1Session, tweet_id):
     oauth.post(url)
 
 
-def _bearer_oauth(req, bearer_token):
-    req.headers["Authorization"] = f"Bearer {bearer_token}"
-    req.headers["User-Agent"] = "share_nakatani project"
-    return req
-
 class FilteredStream:
 
     def __init__(self, bearer_token, oauth) -> None:
         self._bearer_token = bearer_token
         self._oauth = oauth
 
+    def _bearer_oauth(self, req):
+        req.headers["Authorization"] = f"Bearer {self._bearer_token}"
+        req.headers["User-Agent"] = "share_nakatani project (test)"
+        return req
 
     def get_rules(self):
         response = requests.get(
             "https://api.twitter.com/2/tweets/search/stream/rules",
-            auth=lambda r: _bearer_oauth(r, self._bearer_token))
+            auth=self._bearer_oauth)
         if response.status_code != 200:
             raise Exception("Cannot get rules (HTTP {}): {}".format(
                 response.status_code, response.text))
         print(json.dumps(response.json()))
         return response.json()
-
 
     def delete_all_rules(self, rules):
         if rules is None or "data" not in rules:
@@ -40,33 +38,32 @@ class FilteredStream:
         payload = {"delete": {"ids": ids}}
         response = requests.post(
             "https://api.twitter.com/2/tweets/search/stream/rules",
-            auth=lambda r: _bearer_oauth(r, self._bearer_token),
+            auth=self._bearer_oauth,
             json=payload)
         if response.status_code != 200:
             raise Exception("Cannot delete rules (HTTP {}): {}".format(
                 response.status_code, response.text))
         print(json.dumps(response.json()))
 
-
     def set_rules(self):
         rules = [
             {
                 "value": "#中谷育 has:images -is:reply -is:retweet",
-                "tag": "中谷育"
+                "tag": "#中谷育"
             },
             {
                 "value": "#毎日育ちゃん可愛い大会 has:images -is:reply -is:retweet",
-                "tag": "中谷育"
+                "tag": "#中谷育"
             },
             {
                 "value": "#無言で中谷育をあげる見た人もやる has:images -is:reply -is:retweet",
-                "tag": "中谷育"
+                "tag": "#中谷育"
             },
         ]
         payload = {"add": rules}
         response = requests.post(
             "https://api.twitter.com/2/tweets/search/stream/rules",
-            auth=lambda r: _bearer_oauth(r, self._bearer_token),
+            auth=self._bearer_oauth,
             json=payload,
         )
         if response.status_code != 201:
@@ -74,13 +71,13 @@ class FilteredStream:
                 response.status_code, response.text))
         print(json.dumps(response.json()))
 
-
-    def stream_with_retweet(self):
+    def stream_with_retweet(self, notify=None):
         response = requests.get(
             "https://api.twitter.com/2/tweets/search/stream",
-            auth=lambda r: _bearer_oauth(r, self._bearer_token),
+            auth=self._bearer_oauth,
             stream=True,
         )
+        rate_limit_remaining = response.headers["x-rate-limit-remaining"]
         if response.status_code != 200:
             raise Exception("Cannot get stream (HTTP {}): {}".format(
                 response.status_code, response.text))
@@ -88,7 +85,11 @@ class FilteredStream:
             if response_line:
                 json_response = json.loads(response_line)
                 print(json.dumps(json_response, indent=4, sort_keys=True))
-                retweet(self._oauth, json_response["data"]["id"])
+                if json_response.get("data"):
+                    retweet(self._oauth, json_response["data"]["id"])
+                    if notify is not None:
+                        notify(f"SUCCESS/{json_response['data']['id']}")
+        return int(rate_limit_remaining)
 
 
 def search_tweets(bearer_oauth, keywords):

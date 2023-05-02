@@ -1,9 +1,12 @@
+import time
+from datetime import datetime
 from abc import ABC, abstractmethod
 
 import requests
 
 
 class IPubulisher:
+
     def __init__(self) -> None:
         self.subscribers = []
 
@@ -25,9 +28,29 @@ class ErrorPublisher(IPubulisher):
 
 
 class ISubscriber(ABC):
+
     @abstractmethod
     def update(self, message):
         print(message)
+
+
+class ConsoleSubscriber(ISubscriber):
+
+    def update(self, message):
+        print(message)
+
+
+class FileSubscriber(ISubscriber):
+
+    def __init__(self, file) -> None:
+        super().__init__()
+        self._file = file
+
+    def update(self, message):
+        now = datetime.now()
+        file = self._file or "log.txt"
+        with open(file, "a", encoding="UTF-8") as f:
+            f.write(f"{now}: {message}\n")
 
 
 class LINESubscriber(ISubscriber):
@@ -38,12 +61,6 @@ class LINESubscriber(ISubscriber):
 
     def update(self, message):
         endpoint = "https://notify-api.line.me/api/notify"
-        payload = {"message" : message}
-        headers = {"Authorization": "Bearer "+ self._token}
+        payload = {"message": message}
+        headers = {"Authorization": "Bearer " + self._token}
         requests.post(endpoint, data=payload, headers=headers)
-
-
-class ConsoleSubscriber(ISubscriber):
-
-    def update(self, message):
-        print(message)
